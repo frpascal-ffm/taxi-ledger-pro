@@ -15,14 +15,14 @@ export const MitarbeiterSelector = ({
   onSelectionChange
 }: MitarbeiterSelectorProps) => {
   return (
-    <div className="mb-3">
-      <Label htmlFor="mitarbeiter-select" className="text-base font-medium">Mitarbeiter auswählen</Label>
+    <div className="mb-2">
+      <Label htmlFor="mitarbeiter-select" className="text-sm font-medium">Mitarbeiter auswählen</Label>
       <div className="flex gap-4 mt-1">
         <Select
           value={selectedMitarbeiterId}
           onValueChange={onSelectionChange}
         >
-          <SelectTrigger className="w-full max-w-xs">
+          <SelectTrigger className="w-full max-w-xs h-9 text-sm">
             <SelectValue placeholder="Mitarbeiter auswählen" />
           </SelectTrigger>
           <SelectContent>

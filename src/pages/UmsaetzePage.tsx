@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAppStore } from "@/store/AppStoreContext";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -229,9 +228,15 @@ const UmsaetzePage = () => {
     {
       accessorKey: "kalenderwoche",
       header: "Kalenderwoche",
-      cell: (umsatz: Umsatz) => (
-        <span>{formatKalenderwoche(umsatz.kalenderwoche)}</span>
-      )
+      cell: (umsatz: Umsatz) => {
+        const kw = kalenderwochen.find(k => k.value === umsatz.kalenderwoche);
+        return (
+          <span>
+            {formatKalenderwoche(umsatz.kalenderwoche)}
+            {kw ? ` (${kw.startDate})` : ''}
+          </span>
+        );
+      }
     },
     {
       accessorKey: "mitarbeiterName",
@@ -314,7 +319,7 @@ const UmsaetzePage = () => {
       </PageHeader>
 
       {/* Mitarbeiter-Auswahl */}
-      <div className="mt-6 p-4 border rounded-lg bg-white shadow-sm">
+      <div className="mt-4 p-3 border rounded-lg bg-white shadow-sm">
         <MitarbeiterSelector
           mitarbeiter={mitarbeiter}
           selectedMitarbeiterId={selectedMitarbeiterId}
@@ -322,8 +327,8 @@ const UmsaetzePage = () => {
         />
 
         {selectedMitarbeiterId && (
-          <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-4">
+          <div className="mt-4">
+            <h3 className="text-base font-semibold mb-3">
               Umsätze für {selectedMitarbeiterName} erfassen
             </h3>
             
