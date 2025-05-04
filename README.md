@@ -1,73 +1,57 @@
-# Welcome to your Lovable project
 
-## Project info
+# Taxi-Ledger Pro
 
-**URL**: https://lovable.dev/projects/837cfcc5-9163-4074-a226-39b2f2e0d386
+## Übersicht
 
-## How can I edit this code?
+Eine umfassende Verwaltungslösung für Mietwagenunternehmen zur Erfassung von Fahrzeugen, Mitarbeitern, Umsätzen und zur Erstellung von Abrechnungen.
 
-There are several ways of editing your application.
+## Funktionen
 
-**Use Lovable**
+- **Dashboard**: Zeigt wichtige Kennzahlen wie Gesamtumsatz, Kosten, aktive Fahrzeuge und Mitarbeiter.
+- **Fahrzeugverwaltung**: Ermöglicht das Anlegen und Verwalten von Fahrzeugen und deren Kosten mit verschiedenen Zahlungsturnus.
+- **Mitarbeiterverwaltung**: Verwaltung der Mitarbeiterdaten inkl. Vergütungsmodelle.
+- **Umsatzerfassung**: Wöchentliche Erfassung von Umsätzen und Fahrten pro Mitarbeiter.
+- **Abrechnungssystem**: Live-Berechnung der Abrechnungen mit konfigurierbaren Zuschüssen und Abzügen.
+- **Statistiken**: Visualisierung von Umsatz- und Fahrtendaten.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/837cfcc5-9163-4074-a226-39b2f2e0d386) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Installation
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Klonen des Repositories
+git clone <REPOSITORY-URL>
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# In das Projektverzeichnis wechseln
+cd taxi-ledger-pro
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Abhängigkeiten installieren
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Entwicklungsserver starten
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Verwendung
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. Beginnen Sie mit dem Anlegen von Fahrzeugen und deren Kosten.
+2. Fügen Sie Mitarbeiter und deren Vergütungsmodelle hinzu.
+3. Erfassen Sie wöchentlich die Umsätze und Fahrten pro Mitarbeiter.
+4. Erstellen Sie Abrechnungen für jeden Mitarbeiter basierend auf den erfassten Umsätzen.
+5. Analysieren Sie Ihre Daten über die Statistikseite.
 
-**Use GitHub Codespaces**
+## Speicherung der Daten
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Alle Daten werden lokal im Browser via LocalStorage gespeichert. Dies bedeutet:
 
-## What technologies are used for this project?
+- Die Daten sind nach dem Schließen des Browsers weiterhin verfügbar.
+- Die Daten sind auf den Browser und das Gerät beschränkt, auf dem sie eingegeben wurden.
+- Bei Löschen des Browser-Caches werden auch alle gespeicherten Daten entfernt.
 
-This project is built with:
+Für eine unternehmensweite Nutzung mit mehreren Benutzern wäre eine Erweiterung um einen Backend-Dienst erforderlich.
 
-- Vite
-- TypeScript
+## Technologien
+
 - React
-- shadcn-ui
+- TypeScript
 - Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/837cfcc5-9163-4074-a226-39b2f2e0d386) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+- shadcn/ui
+- Recharts für Visualisierungen
