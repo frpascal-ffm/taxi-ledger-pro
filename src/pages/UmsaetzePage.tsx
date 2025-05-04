@@ -4,28 +4,24 @@ import { useAppStore } from "@/store/AppStoreContext";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { AmountInput } from "@/components/ui/amount-input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Save } from "lucide-react";
-import { Umsatz, Mitarbeiter } from "@/types";
-import { 
-  formatCurrency, 
-  formatKalenderwoche, 
-  getCurrentKalenderwoche, 
-  createKalenderwocheId,
-  generateKalenderwochen
-} from "@/utils/helpers";
+import { Plus } from "lucide-react";
+import { Umsatz } from "@/types";
+import { formatCurrency, formatKalenderwoche } from "@/utils/helpers";
 import { v4 as uuidv4 } from "uuid";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/components/ui/use-toast";
+
+// Import custom components
+import { MitarbeiterSelector } from "@/components/umsaetze/MitarbeiterSelector";
+import { QuickEntryForm } from "@/components/umsaetze/QuickEntryForm";
+import { MitarbeiterEntryList } from "@/components/umsaetze/MitarbeiterEntryList";
+import { UmsaetzeDialog } from "@/components/umsaetze/UmsaetzeDialog";
+import { useKalenderwochen } from "@/hooks/useKalenderwochen";
 
 const UmsaetzePage = () => {
   const { state, addUmsatz, updateUmsatz, deleteUmsatz } = useAppStore();
   const { umsaetze, mitarbeiter } = state;
   const { toast } = useToast();
+  const { currentWeek, currentYear, currentKw, kalenderwochen } = useKalenderwochen();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUmsatz, setEditingUmsatz] = useState<Umsatz | null>(null);
@@ -33,24 +29,6 @@ const UmsaetzePage = () => {
   // State for selected employee and their revenue entries
   const [selectedMitarbeiterId, setSelectedMitarbeiterId] = useState<string>("");
   const [filteredUmsaetze, setFilteredUmsaetze] = useState<Umsatz[]>([]);
-  
-  // Aktuelle Kalenderwoche ermitteln
-  const { week: currentWeek, year: currentYear } = getCurrentKalenderwoche();
-  const currentKw = createKalenderwocheId(currentYear, currentWeek);
-  
-  // Kalenderwochen für das aktuelle Jahr und das Vorjahr generieren
-  const years = [currentYear, currentYear - 1];
-  const kalenderwochen: { value: string; label: string }[] = [];
-  
-  years.forEach(year => {
-    const kws = generateKalenderwochen(year);
-    kws.forEach(kw => {
-      kalenderwochen.push({
-        value: kw,
-        label: formatKalenderwoche(kw)
-      });
-    });
-  });
 
   const [currentUmsatz, setCurrentUmsatz] = useState<Umsatz>({
     id: "",
@@ -112,32 +90,6 @@ const UmsaetzePage = () => {
       setFilteredUmsaetze([]);
     }
   }, [selectedMitarbeiterId, umsaetze]);
-
-  // Handler for Umsatz-Formular
-  const handleMitarbeiterChange = (mitarbeiterId: string) => {
-    setCurrentUmsatz({
-      ...currentUmsatz,
-      mitarbeiterId
-    });
-  };
-
-  const handleKalenderwocheChange = (kalenderwoche: string) => {
-    const [jahr, woche] = kalenderwoche.split("-").map(Number);
-    
-    setCurrentUmsatz({
-      ...currentUmsatz,
-      kalenderwoche,
-      jahr,
-      wochenNummer: woche
-    });
-  };
-
-  const handleNumberInputChange = (name: string, value: number | undefined) => {
-    setCurrentUmsatz({
-      ...currentUmsatz,
-      [name]: value !== undefined ? value : 0
-    });
-  };
 
   // Handler for quick entry form
   const handleNewEntryChange = (name: string, value: number | undefined) => {
@@ -363,26 +315,11 @@ const UmsaetzePage = () => {
 
       {/* Mitarbeiter-Auswahl */}
       <div className="mt-6 p-4 border rounded-lg bg-white shadow-sm">
-        <div className="mb-4">
-          <Label htmlFor="mitarbeiter-select" className="text-lg font-medium">Mitarbeiter auswählen</Label>
-          <div className="flex gap-4 mt-2">
-            <Select
-              value={selectedMitarbeiterId}
-              onValueChange={setSelectedMitarbeiterId}
-            >
-              <SelectTrigger className="w-full max-w-md">
-                <SelectValue placeholder="Mitarbeiter auswählen" />
-              </SelectTrigger>
-              <SelectContent>
-                {mitarbeiter.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.vorname} {m.nachname}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        <MitarbeiterSelector
+          mitarbeiter={mitarbeiter}
+          selectedMitarbeiterId={selectedMitarbeiterId}
+          onSelectionChange={setSelectedMitarbeiterId}
+        />
 
         {selectedMitarbeiterId && (
           <div className="mt-6">
@@ -390,148 +327,18 @@ const UmsaetzePage = () => {
               Umsätze für {selectedMitarbeiterName} erfassen
             </h3>
             
-            <div className="border rounded-lg overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[180px]">Kalenderwoche</TableHead>
-                    <TableHead>Gesamtumsatz</TableHead>
-                    <TableHead>Netto-Fahrpreis</TableHead>
-                    <TableHead>Aktionen</TableHead>
-                    <TableHead>Rückerstattungen</TableHead>
-                    <TableHead>Trinkgeld</TableHead>
-                    <TableHead>Bargeld</TableHead>
-                    <TableHead>Fahrten</TableHead>
-                    <TableHead>Waschen</TableHead>
-                    <TableHead className="w-[100px]">Aktion</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell>
-                      <Select
-                        value={newEntry.kalenderwoche}
-                        onValueChange={handleNewEntryKalenderwocheChange}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="KW auswählen" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {kalenderwochen.map((kw) => (
-                            <SelectItem key={kw.value} value={kw.value}>
-                              {kw.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <AmountInput
-                        value={newEntry.gesamtumsatz}
-                        onChange={(value) => handleNewEntryChange("gesamtumsatz", value)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <AmountInput
-                        value={newEntry.nettoFahrpreis}
-                        onChange={(value) => handleNewEntryChange("nettoFahrpreis", value)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <AmountInput
-                        value={newEntry.aktionen}
-                        onChange={(value) => handleNewEntryChange("aktionen", value)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <AmountInput
-                        value={newEntry.rueckerstattungen}
-                        onChange={(value) => handleNewEntryChange("rueckerstattungen", value)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <AmountInput
-                        value={newEntry.trinkgeld}
-                        onChange={(value) => handleNewEntryChange("trinkgeld", value)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <AmountInput
-                        value={newEntry.bargeld}
-                        onChange={(value) => handleNewEntryChange("bargeld", value)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        className="w-20"
-                        value={newEntry.fahrten}
-                        onChange={(e) => handleNewEntryChange("fahrten", e.target.value ? parseInt(e.target.value) : 0)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <AmountInput
-                        value={newEntry.waschen}
-                        onChange={(value) => handleNewEntryChange("waschen", value)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Button onClick={handleSaveNewEntry} className="w-full">
-                        <Save className="h-4 w-4 mr-1" /> Speichern
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
+            <QuickEntryForm 
+              newEntry={newEntry}
+              onEntryChange={handleNewEntryChange}
+              onKalenderwocheChange={handleNewEntryKalenderwocheChange}
+              onSaveEntry={handleSaveNewEntry}
+              kalenderwochen={kalenderwochen}
+            />
             
-            {filteredUmsaetze.length > 0 ? (
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold mb-4">Erfasste Umsätze</h3>
-                <div className="border rounded-lg overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Kalenderwoche</TableHead>
-                        <TableHead>Gesamtumsatz</TableHead>
-                        <TableHead>Netto-Fahrpreis</TableHead>
-                        <TableHead>Aktionen</TableHead>
-                        <TableHead>Rückerstattungen</TableHead>
-                        <TableHead>Trinkgeld</TableHead>
-                        <TableHead>Bargeld</TableHead>
-                        <TableHead>Fahrten</TableHead>
-                        <TableHead>Waschen</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredUmsaetze.map((umsatz) => (
-                        <TableRow 
-                          key={umsatz.id} 
-                          className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => handleEditUmsatz(umsatz)}
-                        >
-                          <TableCell>{formatKalenderwoche(umsatz.kalenderwoche)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(umsatz.gesamtumsatz)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(umsatz.nettoFahrpreis)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(umsatz.aktionen)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(umsatz.rueckerstattungen)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(umsatz.trinkgeld)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(umsatz.bargeld)}</TableCell>
-                          <TableCell className="text-right">{umsatz.fahrten}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(umsatz.waschen)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-6 text-center py-8 border rounded-md bg-gray-50">
-                <p className="text-muted-foreground">
-                  Noch keine Umsätze für diesen Mitarbeiter erfasst.
-                </p>
-              </div>
-            )}
+            <MitarbeiterEntryList 
+              umsaetze={filteredUmsaetze} 
+              onEditEntry={handleEditUmsatz} 
+            />
           </div>
         )}
       </div>
@@ -546,148 +353,16 @@ const UmsaetzePage = () => {
         />
       </div>
 
-      {/* Dialog für das Hinzufügen oder Bearbeiten eines Umsatzes */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>
-              {editingUmsatz ? "Umsatz bearbeiten" : "Neuen Umsatz hinzufügen"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingUmsatz
-                ? "Bearbeiten Sie die Details des ausgewählten Umsatzes."
-                : "Fügen Sie einen neuen Umsatz für einen Mitarbeiter hinzu."}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6 py-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="mitarbeiterId">Mitarbeiter</Label>
-                <Select
-                  value={currentUmsatz.mitarbeiterId || ""}
-                  onValueChange={handleMitarbeiterChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Mitarbeiter auswählen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mitarbeiter.map((mitarbeiter) => (
-                      <SelectItem key={mitarbeiter.id} value={mitarbeiter.id}>
-                        {mitarbeiter.vorname} {mitarbeiter.nachname}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="kalenderwoche">Kalenderwoche</Label>
-                <Select
-                  value={currentUmsatz.kalenderwoche}
-                  onValueChange={handleKalenderwocheChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="KW auswählen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {kalenderwochen.map((kw) => (
-                      <SelectItem key={kw.value} value={kw.value}>
-                        {kw.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="gesamtumsatz">Gesamtumsatz (€)</Label>
-                <AmountInput
-                  id="gesamtumsatz"
-                  value={currentUmsatz.gesamtumsatz}
-                  onChange={(value) => handleNumberInputChange("gesamtumsatz", value)}
-                  className="text-right"
-                />
-              </div>
-              <div>
-                <Label htmlFor="nettoFahrpreis">Netto-Fahrpreis (€)</Label>
-                <AmountInput
-                  id="nettoFahrpreis"
-                  value={currentUmsatz.nettoFahrpreis}
-                  onChange={(value) => handleNumberInputChange("nettoFahrpreis", value)}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="aktionen">Aktionen (€)</Label>
-                <AmountInput
-                  id="aktionen"
-                  value={currentUmsatz.aktionen}
-                  onChange={(value) => handleNumberInputChange("aktionen", value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="rueckerstattungen">Rückerstattungen & Fahrtauslagen (€)</Label>
-                <AmountInput
-                  id="rueckerstattungen"
-                  value={currentUmsatz.rueckerstattungen}
-                  onChange={(value) => handleNumberInputChange("rueckerstattungen", value)}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="trinkgeld">Trinkgeld (€)</Label>
-                <AmountInput
-                  id="trinkgeld"
-                  value={currentUmsatz.trinkgeld}
-                  onChange={(value) => handleNumberInputChange("trinkgeld", value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="bargeld">Bargeld (€)</Label>
-                <AmountInput
-                  id="bargeld"
-                  value={currentUmsatz.bargeld}
-                  onChange={(value) => handleNumberInputChange("bargeld", value)}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="fahrten">Anzahl Fahrten</Label>
-                <Input
-                  id="fahrten"
-                  type="number"
-                  value={currentUmsatz.fahrten}
-                  onChange={(e) => handleNumberInputChange("fahrten", e.target.value ? parseInt(e.target.value) : 0)}
-                  className="text-right"
-                />
-              </div>
-              <div>
-                <Label htmlFor="waschen">Waschen (€)</Label>
-                <AmountInput
-                  id="waschen"
-                  value={currentUmsatz.waschen}
-                  onChange={(value) => handleNumberInputChange("waschen", value)}
-                />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              Abbrechen
-            </Button>
-            <Button onClick={handleSaveUmsatz}>Speichern</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <UmsaetzeDialog 
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        onSave={handleSaveUmsatz}
+        editingUmsatz={editingUmsatz}
+        currentUmsatz={currentUmsatz}
+        setCurrentUmsatz={setCurrentUmsatz}
+        mitarbeiter={mitarbeiter}
+        kalenderwochen={kalenderwochen}
+      />
     </div>
   );
 };
