@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAppStore } from "@/store/AppStoreContext";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -9,8 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus } from "lucide-react";
-import { Umsatz } from "@/types";
+import { Plus, Save } from "lucide-react";
+import { Umsatz, Mitarbeiter } from "@/types";
 import { 
   formatCurrency, 
   formatKalenderwoche, 
@@ -19,13 +19,20 @@ import {
   generateKalenderwochen
 } from "@/utils/helpers";
 import { v4 as uuidv4 } from "uuid";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useToast } from "@/components/ui/use-toast";
 
 const UmsaetzePage = () => {
   const { state, addUmsatz, updateUmsatz, deleteUmsatz } = useAppStore();
   const { umsaetze, mitarbeiter } = state;
+  const { toast } = useToast();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUmsatz, setEditingUmsatz] = useState<Umsatz | null>(null);
+  
+  // State for selected employee and their revenue entries
+  const [selectedMitarbeiterId, setSelectedMitarbeiterId] = useState<string>("");
+  const [filteredUmsaetze, setFilteredUmsaetze] = useState<Umsatz[]>([]);
   
   // Aktuelle Kalenderwoche ermitteln
   const { week: currentWeek, year: currentYear } = getCurrentKalenderwoche();
@@ -62,7 +69,51 @@ const UmsaetzePage = () => {
     waschen: 0
   });
 
-  // Handler für Umsatz-Formular
+  // New entry state for quick input form
+  const [newEntry, setNewEntry] = useState<Umsatz>({
+    id: "",
+    mitarbeiterId: "",
+    wochenNummer: currentWeek,
+    jahr: currentYear,
+    kalenderwoche: currentKw,
+    erfasstAm: new Date(),
+    gesamtumsatz: 0,
+    nettoFahrpreis: 0,
+    aktionen: 0,
+    rueckerstattungen: 0,
+    trinkgeld: 0,
+    bargeld: 0,
+    fahrten: 0,
+    waschen: 0
+  });
+
+  // Update filtered umsaetze when mitarbeiter selection changes
+  useEffect(() => {
+    if (selectedMitarbeiterId) {
+      const filtered = umsaetze.filter(
+        umsatz => umsatz.mitarbeiterId === selectedMitarbeiterId
+      );
+      setFilteredUmsaetze(filtered.sort((a, b) => {
+        const [yearA, weekA] = a.kalenderwoche.split("-").map(Number);
+        const [yearB, weekB] = b.kalenderwoche.split("-").map(Number);
+        
+        if (yearA !== yearB) {
+          return yearB - yearA; // Jahr absteigend
+        }
+        return weekB - weekA; // Woche absteigend
+      }));
+      
+      // Update newEntry with selected mitarbeiter
+      setNewEntry(prev => ({
+        ...prev,
+        mitarbeiterId: selectedMitarbeiterId
+      }));
+    } else {
+      setFilteredUmsaetze([]);
+    }
+  }, [selectedMitarbeiterId, umsaetze]);
+
+  // Handler for Umsatz-Formular
   const handleMitarbeiterChange = (mitarbeiterId: string) => {
     setCurrentUmsatz({
       ...currentUmsatz,
@@ -88,6 +139,86 @@ const UmsaetzePage = () => {
     });
   };
 
+  // Handler for quick entry form
+  const handleNewEntryChange = (name: string, value: number | undefined) => {
+    setNewEntry({
+      ...newEntry,
+      [name]: value !== undefined ? value : 0
+    });
+  };
+
+  const handleNewEntryKalenderwocheChange = (kalenderwoche: string) => {
+    const [jahr, woche] = kalenderwoche.split("-").map(Number);
+    
+    setNewEntry({
+      ...newEntry,
+      kalenderwoche,
+      jahr,
+      wochenNummer: woche
+    });
+  };
+
+  const handleSaveNewEntry = () => {
+    if (!selectedMitarbeiterId || !newEntry.kalenderwoche) {
+      toast({
+        title: "Fehler",
+        description: "Bitte wählen Sie einen Mitarbeiter und eine Kalenderwoche aus.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check if entry already exists for this employee and calendar week
+    const existingEntry = umsaetze.find(
+      u => u.mitarbeiterId === selectedMitarbeiterId && u.kalenderwoche === newEntry.kalenderwoche
+    );
+
+    if (existingEntry) {
+      // Update existing entry
+      updateUmsatz({
+        ...existingEntry,
+        ...newEntry,
+        mitarbeiterId: selectedMitarbeiterId
+      });
+
+      toast({
+        title: "Eintrag aktualisiert",
+        description: `Umsatz für KW ${formatKalenderwoche(newEntry.kalenderwoche)} wurde aktualisiert.`
+      });
+    } else {
+      // Add new entry
+      addUmsatz({
+        ...newEntry,
+        id: uuidv4(),
+        mitarbeiterId: selectedMitarbeiterId,
+        erfasstAm: new Date()
+      });
+
+      toast({
+        title: "Eintrag gespeichert",
+        description: `Neuer Umsatz für KW ${formatKalenderwoche(newEntry.kalenderwoche)} wurde hinzugefügt.`
+      });
+    }
+
+    // Reset form with the same mitarbeiter
+    setNewEntry({
+      id: "",
+      mitarbeiterId: selectedMitarbeiterId,
+      wochenNummer: currentWeek,
+      jahr: currentYear,
+      kalenderwoche: currentKw,
+      erfasstAm: new Date(),
+      gesamtumsatz: 0,
+      nettoFahrpreis: 0,
+      aktionen: 0,
+      rueckerstattungen: 0,
+      trinkgeld: 0,
+      bargeld: 0,
+      fahrten: 0,
+      waschen: 0
+    });
+  };
+
   // Umsatz-Dialog öffnen für Bearbeitung
   const handleEditUmsatz = (umsatz: Umsatz) => {
     setEditingUmsatz(umsatz);
@@ -100,7 +231,7 @@ const UmsaetzePage = () => {
     setEditingUmsatz(null);
     setCurrentUmsatz({
       id: "",
-      mitarbeiterId: "",
+      mitarbeiterId: selectedMitarbeiterId || "",
       wochenNummer: currentWeek,
       jahr: currentYear,
       kalenderwoche: currentKw,
@@ -120,7 +251,12 @@ const UmsaetzePage = () => {
   // Umsatz speichern
   const handleSaveUmsatz = () => {
     if (!currentUmsatz.mitarbeiterId || !currentUmsatz.kalenderwoche) {
-      return; // Validierung fehlgeschlagen
+      toast({
+        title: "Fehler",
+        description: "Bitte wählen Sie einen Mitarbeiter und eine Kalenderwoche aus.",
+        variant: "destructive"
+      });
+      return;
     }
 
     if (editingUmsatz) {
@@ -206,6 +342,13 @@ const UmsaetzePage = () => {
     return weekB - weekA; // Woche absteigend
   });
 
+  // Get selected mitarbeiter name for display
+  const selectedMitarbeiterName = selectedMitarbeiterId 
+    ? mitarbeiter.find(m => m.id === selectedMitarbeiterId)
+      ? `${mitarbeiter.find(m => m.id === selectedMitarbeiterId)?.vorname || ''} ${mitarbeiter.find(m => m.id === selectedMitarbeiterId)?.nachname || ''}`
+      : ''
+    : '';
+
   return (
     <div>
       <PageHeader 
@@ -218,7 +361,183 @@ const UmsaetzePage = () => {
         </Button>
       </PageHeader>
 
+      {/* Mitarbeiter-Auswahl */}
+      <div className="mt-6 p-4 border rounded-lg bg-white shadow-sm">
+        <div className="mb-4">
+          <Label htmlFor="mitarbeiter-select" className="text-lg font-medium">Mitarbeiter auswählen</Label>
+          <div className="flex gap-4 mt-2">
+            <Select
+              value={selectedMitarbeiterId}
+              onValueChange={setSelectedMitarbeiterId}
+            >
+              <SelectTrigger className="w-full max-w-md">
+                <SelectValue placeholder="Mitarbeiter auswählen" />
+              </SelectTrigger>
+              <SelectContent>
+                {mitarbeiter.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.vorname} {m.nachname}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {selectedMitarbeiterId && (
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-4">
+              Umsätze für {selectedMitarbeiterName} erfassen
+            </h3>
+            
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[180px]">Kalenderwoche</TableHead>
+                    <TableHead>Gesamtumsatz</TableHead>
+                    <TableHead>Netto-Fahrpreis</TableHead>
+                    <TableHead>Aktionen</TableHead>
+                    <TableHead>Rückerstattungen</TableHead>
+                    <TableHead>Trinkgeld</TableHead>
+                    <TableHead>Bargeld</TableHead>
+                    <TableHead>Fahrten</TableHead>
+                    <TableHead>Waschen</TableHead>
+                    <TableHead className="w-[100px]">Aktion</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell>
+                      <Select
+                        value={newEntry.kalenderwoche}
+                        onValueChange={handleNewEntryKalenderwocheChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="KW auswählen" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {kalenderwochen.map((kw) => (
+                            <SelectItem key={kw.value} value={kw.value}>
+                              {kw.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <AmountInput
+                        value={newEntry.gesamtumsatz}
+                        onChange={(value) => handleNewEntryChange("gesamtumsatz", value)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <AmountInput
+                        value={newEntry.nettoFahrpreis}
+                        onChange={(value) => handleNewEntryChange("nettoFahrpreis", value)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <AmountInput
+                        value={newEntry.aktionen}
+                        onChange={(value) => handleNewEntryChange("aktionen", value)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <AmountInput
+                        value={newEntry.rueckerstattungen}
+                        onChange={(value) => handleNewEntryChange("rueckerstattungen", value)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <AmountInput
+                        value={newEntry.trinkgeld}
+                        onChange={(value) => handleNewEntryChange("trinkgeld", value)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <AmountInput
+                        value={newEntry.bargeld}
+                        onChange={(value) => handleNewEntryChange("bargeld", value)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        className="w-20"
+                        value={newEntry.fahrten}
+                        onChange={(e) => handleNewEntryChange("fahrten", e.target.value ? parseInt(e.target.value) : 0)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <AmountInput
+                        value={newEntry.waschen}
+                        onChange={(value) => handleNewEntryChange("waschen", value)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Button onClick={handleSaveNewEntry} className="w-full">
+                        <Save className="h-4 w-4 mr-1" /> Speichern
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+            
+            {filteredUmsaetze.length > 0 ? (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold mb-4">Erfasste Umsätze</h3>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Kalenderwoche</TableHead>
+                        <TableHead>Gesamtumsatz</TableHead>
+                        <TableHead>Netto-Fahrpreis</TableHead>
+                        <TableHead>Aktionen</TableHead>
+                        <TableHead>Rückerstattungen</TableHead>
+                        <TableHead>Trinkgeld</TableHead>
+                        <TableHead>Bargeld</TableHead>
+                        <TableHead>Fahrten</TableHead>
+                        <TableHead>Waschen</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredUmsaetze.map((umsatz) => (
+                        <TableRow 
+                          key={umsatz.id} 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleEditUmsatz(umsatz)}
+                        >
+                          <TableCell>{formatKalenderwoche(umsatz.kalenderwoche)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(umsatz.gesamtumsatz)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(umsatz.nettoFahrpreis)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(umsatz.aktionen)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(umsatz.rueckerstattungen)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(umsatz.trinkgeld)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(umsatz.bargeld)}</TableCell>
+                          <TableCell className="text-right">{umsatz.fahrten}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(umsatz.waschen)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-6 text-center py-8 border rounded-md bg-gray-50">
+                <p className="text-muted-foreground">
+                  Noch keine Umsätze für diesen Mitarbeiter erfasst.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="mt-6">
+        <h3 className="text-lg font-semibold mb-4">Alle Umsätze</h3>
         <DataTable
           data={sortedUmsaetze}
           columns={columns}
